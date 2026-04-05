@@ -1,0 +1,171 @@
+repeat task.wait() until game:IsLoaded()
+
+-- LOAD UI
+local Rayfield = loadstring(game:HttpGet('https://raw.githubusercontent.com/shlexware/Rayfield/main/source'))()
+
+local Window = Rayfield:CreateWindow({
+	Name = "KienSupportHub | ByTrungKien",
+	LoadingTitle = "KienSupportHub",
+	LoadingSubtitle = "Loading...",
+	ConfigurationSaving = {Enabled = false}
+})
+
+local Tab = Window:CreateTab("Main", 4483362458)
+
+-- SERVICES
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UIS = game:GetService("UserInputService")
+local Lighting = game:GetService("Lighting")
+local Stats = game:GetService("Stats")
+local SoundService = game:GetService("SoundService")
+
+local player = Players.LocalPlayer
+local camera = workspace.CurrentCamera
+
+-- 🔘 TOGGLE UI
+UIS.InputBegan:Connect(function(i,g)
+	if not g and i.KeyCode == Enum.KeyCode.RightShift then
+		game.CoreGui.Rayfield.Enabled = not game.CoreGui.Rayfield.Enabled
+	end
+end)
+
+-- AIM
+local AIM = false
+local target = nil
+
+local function getClosest()
+	local c,dist=nil,math.huge
+	for _,v in pairs(Players:GetPlayers()) do
+		if v~=player and v.Character and v.Character:FindFirstChild("HumanoidRootPart") then
+			local d=(player.Character.HumanoidRootPart.Position-v.Character.HumanoidRootPart.Position).Magnitude
+			if d<dist then dist=d c=v end
+		end
+	end
+	return c
+end
+
+RunService.RenderStepped:Connect(function()
+	if AIM and target and target.Character then
+		camera.CFrame=CFrame.new(camera.CFrame.Position,target.Character.HumanoidRootPart.Position)
+	end
+end)
+
+Tab:CreateToggle({Name="Aim",Callback=function(v) AIM=v if v then target=getClosest() end end})
+Tab:CreateButton({Name="Reset Aim",Callback=function() target=nil end})
+
+UIS.InputBegan:Connect(function(i)
+	if i.KeyCode==Enum.KeyCode.G then target=getClosest() end
+end)
+
+-- SPEED/JUMP
+local speed=16 jump=50 sp=false jp=false
+
+Tab:CreateInput({Name="Speed",Callback=function(v) speed=tonumber(v) or 16 end})
+Tab:CreateToggle({Name="Speed ON",Callback=function(v) sp=v end})
+
+Tab:CreateInput({Name="Jump",Callback=function(v) jump=tonumber(v) or 50 end})
+Tab:CreateToggle({Name="Jump ON",Callback=function(v) jp=v end})
+
+RunService.RenderStepped:Connect(function()
+	local h=player.Character and player.Character:FindFirstChild("Humanoid")
+	if h then
+		if sp then h.WalkSpeed=speed end
+		if jp then h.JumpPower=jump end
+	end
+end)
+
+-- NOCLIP
+local noclip=false
+Tab:CreateToggle({Name="Noclip",Callback=function(v) noclip=v end})
+
+RunService.Stepped:Connect(function()
+	if noclip and player.Character then
+		for _,v in pairs(player.Character:GetDescendants()) do
+			if v:IsA("BasePart") then v.CanCollide=false end
+		end
+	end
+end)
+
+-- FULLBRIGHT
+local fb=false
+Tab:CreateToggle({Name="FullBright",Callback=function(v) fb=v end})
+
+task.spawn(function()
+	while true do task.wait(1)
+		if fb then
+			Lighting.Brightness=4
+			Lighting.ClockTime=14
+			Lighting.FogEnd=100000
+			Lighting.GlobalShadows=false
+		end
+	end
+end)
+
+-- MUSIC
+local music=Instance.new("Sound",SoundService)
+music.SoundId="rbxassetid://1843529638"
+music.Looped=true
+music.Volume=2
+
+Tab:CreateToggle({Name="Music",Callback=function(v)
+	if v then music:Play() else music:Stop() end
+end})
+
+-- HITBOX + ESP
+local hit=false esp=false
+Tab:CreateToggle({Name="Hitbox",Callback=function(v) hit=v end})
+Tab:CreateToggle({Name="ESP",Callback=function(v) esp=v end})
+
+local espFolder=Instance.new("Folder",game.CoreGui)
+
+RunService.RenderStepped:Connect(function()
+	espFolder:ClearAllChildren()
+	for _,v in pairs(workspace:GetDescendants()) do
+		if v:IsA("Model") and v:FindFirstChild("HumanoidRootPart") and v:FindFirstChild("Humanoid") and v.Humanoid.Health>0 and not Players:GetPlayerFromCharacter(v) then
+			local root=v.HumanoidRootPart
+			
+			if hit then
+				root.Size=Vector3.new(10,10,10)
+				root.CanCollide=false
+			end
+			
+			if esp then
+				local hl=Instance.new("Highlight",espFolder)
+				hl.Adornee=v
+			end
+		end
+	end
+end)
+
+-- FPS HUD
+local gui=Instance.new("ScreenGui",game.CoreGui)
+local label=Instance.new("TextLabel",gui)
+label.Position=UDim2.new(0,10,0,10)
+label.Size=UDim2.new(0,200,0,40)
+label.BackgroundTransparency=1
+label.Font=Enum.Font.GothamBold
+label.TextScaled=true
+
+local last=tick()
+RunService.RenderStepped:Connect(function()
+	local now=tick()
+	local fps=math.floor(1/(now-last))
+	last=now
+	
+	local ping=0
+	pcall(function()
+		ping=math.floor(Stats.Network.ServerStatsItem["Data Ping"]:GetValue())
+	end)
+	
+	local pos=player.Character and player.Character:FindFirstChild("HumanoidRootPart") and player.Character.HumanoidRootPart.Position or Vector3.new()
+	
+	label.Text="FPS:"..fps.." | Ping:"..ping.."\nXYZ:"..math.floor(pos.X)..","..math.floor(pos.Y)..","..math.floor(pos.Z)
+end)
+
+-- AUTO EXEC
+queue_on_teleport([[
+loadstring(game:HttpGet("YOUR_SCRIPT_LINK_HERE"))()
+]])
+
+Rayfield:Notify({Title="KienSupportHub",Content="Loaded Full!",Duration=5})
